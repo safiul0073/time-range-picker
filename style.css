@@ -1,0 +1,39 @@
+.time-picker-box {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* 6 columns for time blocks */
+    gap: 0.5rem;
+    padding: 1rem;
+    max-height: 250px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.time-slot {
+    padding: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    background: #f3f4f6;
+    transition: background 0.2s;
+}
+
+.time-slot:hover {
+    background: #e5e7eb;
+}
+
+.time-slot.selected {
+    background: #2196f3;
+    color: white;
+}
+
+.time-slot.in-selected {
+    background: #5589b4;
+    color: white;
+}
+
+.time-slot.disabled{
+    background: #515357;
+    color: #f3f4f6;
+}

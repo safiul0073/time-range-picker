@@ -1,0 +1,19 @@
+{
+  "name": "time-picker",
+  "version": "1.0.0",
+  "description": "this a time picker package",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/safiul0073/time-range-picker.git"
+  },
+  "author": "Safiullah",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/safiul0073/time-range-picker/issues"
+  },
+  "homepage": "https://github.com/safiul0073/time-range-picker#readme"
+}

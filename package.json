@@ -1,19 +1,27 @@
 {
-  "name": "time-picker",
+  "name": "time-range-picker-lite",
   "version": "1.0.0",
-  "description": "this a time picker package",
-  "main": "index.js",
+  "description": "A custom time picker for selecting time ranges",
+  "main": "dist/index.js",
+  "style": "dist/time-picker.css",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup -c"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/safiul0073/time-range-picker.git"
-  },
-  "author": "Safiullah",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/safiul0073/time-range-picker/issues"
-  },
-  "homepage": "https://github.com/safiul0073/time-range-picker#readme"
+  "keywords": [
+    "time-picker",
+    "javascript",
+    "ui"
+  ],
+  "author": "Safiul",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "rollup": "^4.35.0",
+    "rollup-plugin-css-only": "^4.5.2"
+  }
 }

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="../dist/index.js"></script>
+    <link rel="stylesheet" href="../dist/time-picker.css">
+</head>
+<body>
+    <div class="time-picker-container">
+        <input type="text" placeholder="Select time range" />
+        <div class="time-picker-box hidden"></div>
+    </div>
+    <script>
+        const { TimePicker } = window.TimePicker; // UMD format
+        new TimePicker({
+            element: document.querySelector('.time-picker-container'),
+            disableTime: ['08:00', '12:00'],
+            onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`),
+        });
+    </script>
+</body>
+</html>

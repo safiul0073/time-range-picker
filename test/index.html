@@ -1,21 +1,28 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TimePicker</title>
     <script src="../dist/index.js"></script>
-    <link rel="stylesheet" href="../dist/time-picker.css">
-</head>
-<body>
-    <div class="time-picker-container">
-        <input type="text" placeholder="Select time range" />
-        <div class="time-picker-box hidden"></div>
+    <link rel="stylesheet" href="../dist/time-picker.css" />
+  </head>
+  <body>
+    <div class="time-picker-container" data-disable-time="08:00,12:00" data-selected-start-time="01:00" data-selected-end-time="09:00" data-min-time="01:00" data-max-time="23:00" data-step="60">
+      <input type="text" readonly />
+      <div class="time-picker-box hidden"></div>
     </div>
+
     <script>
-        const { TimePicker } = window.TimePicker; // UMD format
-        new TimePicker({
-            element: document.querySelector('.time-picker-container'),
-            disableTime: ['08:00', '12:00'],
-            onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`),
-        });
+      const { TimePicker } = window.TimePicker;
+      const timePicker = new TimePicker({
+        element: document.querySelector(".time-picker-container"),
+      });
+
+      // Listen for selection
+      document.querySelector(".time-picker-container").addEventListener("timeSelected", (e) => {
+        console.log("Selected:", e.detail);
+      });
     </script>
-</body>
+  </body>
 </html>

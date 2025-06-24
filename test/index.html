@@ -1,28 +1,207 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TimePicker</title>
+<html>
+<head>
+    <title>Time Range Picker - Select2 Style Demo</title>
     <script src="../dist/index.js"></script>
-    <link rel="stylesheet" href="../dist/time-picker.css" />
-  </head>
-  <body>
-    <div class="time-picker-container" data-disable-time="08:00,12:00" data-selected-start-time="01:00" data-selected-end-time="09:00" data-min-time="01:00" data-max-time="23:00" data-step="60">
-      <input type="text" readonly />
-      <div class="time-picker-box hidden"></div>
+    <link rel="stylesheet" href="../dist/time-picker.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .demo-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .code-example {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .output {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Time Range Picker - Select2 Style</h1>
+    <p>This package now works like Select2 or Nice Select - you only need to provide a single input field and the package handles everything else!</p>
+
+    <div class="demo-section">
+        <h3>Basic Usage</h3>
+        <p>Just provide a single input field:</p>
+        <div class="code-example">
+            &lt;input type="text" id="basic-picker" placeholder="Select time range" /&gt;
+        </div>
+        <input type="text" id="basic-picker" placeholder="Select time range" />
+        <div class="output" id="basic-output">Selected: None</div>
+    </div>
+
+    <div class="demo-section">
+        <h3>With Disabled Times</h3>
+        <p>Disable specific time slots:</p>
+        <div class="code-example">
+            new TimePicker({
+                element: document.getElementById('disabled-picker'),
+                disableTime: ['08:00', '12:00', '18:00'],
+                onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`)
+            });
+        </div>
+        <input type="text" id="disabled-picker" placeholder="Select time range (8:00, 12:00, 18:00 disabled)" />
+        <div class="output" id="disabled-output">Selected: None</div>
+    </div>
+
+    <div class="demo-section">
+        <h3>With Custom Hours Range</h3>
+        <p>Customize the time range (9 AM to 6 PM):</p>
+        <div class="code-example">
+            new TimePicker({
+                element: document.getElementById('custom-hours'),
+                startHour: 9,
+                endHour: 18,
+                onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`)
+            });
+        </div>
+        <input type="text" id="custom-hours" placeholder="Select time range (9 AM - 6 PM)" />
+        <div class="output" id="custom-output">Selected: None</div>
+    </div>
+
+    <div class="demo-section">
+        <h3>With 30-Minute Intervals</h3>
+        <p>Show time slots every 30 minutes:</p>
+        <div class="code-example">
+            new TimePicker({
+                element: document.getElementById('thirty-min'),
+                step: 30,
+                onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`)
+            });
+        </div>
+        <input type="text" id="thirty-min" placeholder="Select time range (30-min intervals)" />
+        <div class="output" id="thirty-output">Selected: None</div>
+    </div>
+
+    <div class="demo-section">
+        <h3>With Pre-selected Values</h3>
+        <p>Initialize with pre-selected time range:</p>
+        <div class="code-example">
+            new TimePicker({
+                element: document.getElementById('preselected'),
+                selectedTime: { startTime: '09:00', endTime: '17:00' },
+                onSelected: (start, end) => console.log(`Selected: ${start} - ${end}`)
+            });
+        </div>
+        <input type="text" id="preselected" placeholder="Select time range" />
+        <div class="output" id="preselected-output">Selected: 09:00 - 17:00</div>
+    </div>
+
+    <div class="demo-section">
+        <h3>API Methods Demo</h3>
+        <p>Test the API methods:</p>
+        <input type="text" id="api-demo" placeholder="Select time range" />
+        <div class="output" id="api-output">Selected: None</div>
+        <br>
+        <button onclick="setValue()">Set Value (10:00 - 15:00)</button>
+        <button onclick="clearValue()">Clear Value</button>
+        <button onclick="getValue()">Get Current Value</button>
+        <button onclick="destroyPicker()">Destroy Picker</button>
     </div>
 
     <script>
-      const { TimePicker } = window.TimePicker;
-      const timePicker = new TimePicker({
-        element: document.querySelector(".time-picker-container"),
-      });
+        const { TimePicker } = window.TimePicker; // UMD format
 
-      // Listen for selection
-      document.querySelector(".time-picker-container").addEventListener("timeSelected", (e) => {
-        console.log("Selected:", e.detail);
-      });
+        // Basic usage
+        const basicPicker = new TimePicker({
+            element: document.getElementById('basic-picker'),
+            onSelected: (start, end) => {
+                document.getElementById('basic-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // With disabled times
+        const disabledPicker = new TimePicker({
+            element: document.getElementById('disabled-picker'),
+            disableTime: ['08:00', '12:00', '18:00'],
+            onSelected: (start, end) => {
+                document.getElementById('disabled-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // Custom hours range
+        const customPicker = new TimePicker({
+            element: document.getElementById('custom-hours'),
+            startHour: 9,
+            endHour: 18,
+            onSelected: (start, end) => {
+                document.getElementById('custom-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // 30-minute intervals
+        const thirtyPicker = new TimePicker({
+            element: document.getElementById('thirty-min'),
+            step: 30,
+            onSelected: (start, end) => {
+                document.getElementById('thirty-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // Pre-selected values
+        const preselectedPicker = new TimePicker({
+            element: document.getElementById('preselected'),
+            selectedTime: { startTime: '09:00', endTime: '17:00' },
+            onSelected: (start, end) => {
+                document.getElementById('preselected-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // API demo
+        let apiPicker = new TimePicker({
+            element: document.getElementById('api-demo'),
+            onSelected: (start, end) => {
+                document.getElementById('api-output').textContent = `Selected: ${start} - ${end}`;
+            }
+        });
+
+        // API methods
+        window.setValue = function() {
+            apiPicker.setValue('10:00', '15:00');
+            document.getElementById('api-output').textContent = 'Selected: 10:00 - 15:00';
+        };
+
+        window.clearValue = function() {
+            apiPicker.clear();
+            document.getElementById('api-output').textContent = 'Selected: None';
+        };
+
+        window.getValue = function() {
+            const value = apiPicker.getValue();
+            alert(`Current value: ${value || 'None'}`);
+        };
+
+        window.destroyPicker = function() {
+            apiPicker.destroy();
+            document.getElementById('api-output').textContent = 'Picker destroyed - refresh page to recreate';
+        };
     </script>
-  </body>
+</body>
 </html>

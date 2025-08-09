@@ -1,291 +1,314 @@
 import './time-picker.css';
+
 export class TimePicker {
-    constructor({
-        element,
-        disableTime = [],
-        selectedTime = {
-            startTime: null,
-            endTime: null,
-        },
-        onSelected = () => {},
-    }) {
-        this.element = element;
-        this.disableTime = disableTime;
-        this.startTime = selectedTime.startTime || null; // Track the start of the range
-        this.endTime = selectedTime.endTime || null; // Track the end of the range
-        this.onSelected = onSelected;
+    constructor(options = {}) {
+        // Default options
+        this.options = {
+            element: null,
+            placeholder: 'Select time range',
+            disableTime: [],
+            selectedTime: {
+                startTime: null,
+                endTime: null,
+            },
+            onSelected: () => {},
+            onOpen: () => {},
+            onClose: () => {},
+            format: 'HH:mm',
+            startHour: 1,
+            endHour: 23,
+            step: 60, // minutes
+            columns: 5, // Number of columns in the grid
+            ...options
+        };
+
+        // Internal state
+        this.startTime = this.options.selectedTime.startTime || null;
+        this.endTime = this.options.selectedTime.endTime || null;
+        this.isOpen = false;
         this.eventListeners = [];
+        this.originalInput = null;
+        this.wrapper = null;
+        this.displayInput = null;
+        this.grid = null;
+        this.timeSlots = [];
+
         this.init();
-
-        if (selectedTime.startTime && selectedTime.endTime) {
-            this.startTime = this.formatTime(selectedTime.startTime);
-            this.endTime = this.formatTime(selectedTime.endTime);
-        }
-
-        this.eventsListener = {};
     }
 
     init() {
-        this.createTimePicker(this.element);
-    }
-
-    formatTime(time) {
-        return time;
-    }
-    createTimePicker(element) {
-        const input = element.querySelector("input");
-        const timeBox = element.querySelector(".time-picker-box");
-
-        // Clear existing time slots if any (to avoid duplicates)
-        timeBox.innerHTML = "";
-        this.populateTimeSlots(timeBox);
-
-        // Store and add event listeners
-        const focusListener = () => timeBox.classList.remove("hidden");
-        input.addEventListener("focus", focusListener);
-        this.eventListeners.push({ element: input, type: "focus", listener: focusListener });
-
-        const keyupListener = (e) => {
-            this.resetSelection(timeBox);
-            const value = e.target.value.trim();
-            if (value) {
-                if (value.endsWith(":00") || value.endsWith(":00-")) {
-                    this.highlightFirstSlot(timeBox, value);
-                }
-                const [start, end] = value.split("-");
-                if (start && end && end.endsWith(":00")) {
-                    this.startTime = start.trim();
-                    this.endTime = end.trim();
-                    this.highlightRange(timeBox, this.startTime, this.endTime);
-                    this.onSelected(this.startTime, this.endTime);
-                } else {
-                    this.highlightFirstSlot(timeBox, start);
-                }
-            }
-        };
-        input.addEventListener("keyup", keyupListener);
-        this.eventListeners.push({ element: input, type: "keyup", listener: keyupListener });
-
-        const clickListener = (e) => {
-            if (e.target.classList.contains("time-slot")) {
-                this.handleTimeSelection(e.target, timeBox, input);
-            }
-        };
-        timeBox.addEventListener("click", clickListener);
-        this.eventListeners.push({ element: timeBox, type: "click", listener: clickListener });
-
-        // Add listeners to time slots dynamically
-        timeBox.querySelectorAll(".time-slot").forEach((slot) => {
-            const mouseenterListener = (e) => this.handleMouseOnHoverSelection(e.target, timeBox);
-            const mouseleaveListener = (e) => this.resetOnHoverSelectedTimeSlot(e.target, timeBox);
-            slot.addEventListener("mouseenter", mouseenterListener);
-            slot.addEventListener("mouseleave", mouseleaveListener);
-            this.eventListeners.push({ element: slot, type: "mouseenter", listener: mouseenterListener });
-            this.eventListeners.push({ element: slot, type: "mouseleave", listener: mouseleaveListener });
-        });
-
-        const timeBoxMouseLeaveListener = () => {
-            if (this.startTime && !this.endTime) {
-                this.resetSelection(timeBox);
-                this.startTime = null;
-            }
-        };
-        timeBox.addEventListener("mouseleave", timeBoxMouseLeaveListener);
-        this.eventListeners.push({ element: timeBox, type: "mouseleave", listener: timeBoxMouseLeaveListener });
-
-        const documentClickListener = (e) => {
-            if (!element.contains(e.target)) {
-                timeBox.classList.add("hidden");
-                const value = input.value.trim();
-                if (!value) {
-                    this.resetSelection(timeBox);
-                }
-                if (value) {
-                    [this.startTime, this.endTime] = value.split("-");
-                    if (!this.startTime || !this.endTime) {
-                        input.value = "";
-                    }
-                }
-            }
-        };
-        document.addEventListener("click", documentClickListener);
-        this.eventListeners.push({ element: document, type: "click", listener: documentClickListener });
-
-        // Initial value if selected
-        if (this.startTime && this.endTime) {
-            this.highlightRange(timeBox, this.startTime, this.endTime);
-            input.value = `${this.startTime} - ${this.endTime}`;
+        if (!this.options.element) {
+            throw new Error('TimePicker: element is required');
         }
+
+        this.originalInput = this.options.element;
+        this.createWrapper();
+        this.createGrid();
+        this.bindEvents();
+        this.updateDisplay();
     }
 
-    populateTimeSlots(timeBox) {
-        const startHour = 1;
-        const endHour = 23;
+    createWrapper() {
+        // Create wrapper container
+        this.wrapper = document.createElement('div');
+        this.wrapper.className = 'time-picker-wrapper';
+        this.wrapper.style.position = 'relative';
+        this.wrapper.style.display = 'inline-block';
 
+        // Create display input (what user sees)
+        this.displayInput = document.createElement('input');
+        this.displayInput.type = 'text';
+        this.displayInput.className = 'time-picker-display';
+        this.displayInput.placeholder = this.options.placeholder;
+        this.displayInput.readOnly = true;
+        this.displayInput.style.cursor = 'pointer';
+
+        // Hide original input
+        this.originalInput.style.display = 'none';
+
+        // Insert wrapper before original input
+        this.originalInput.parentNode.insertBefore(this.wrapper, this.originalInput);
+        this.wrapper.appendChild(this.displayInput);
+    }
+
+    createGrid() {
+        this.grid = document.createElement('div');
+        this.grid.className = 'time-picker-grid';
+        this.grid.style.display = 'none';
+        this.wrapper.appendChild(this.grid);
+        this.populateTimeSlots();
+    }
+
+    populateTimeSlots() {
+        this.grid.innerHTML = '';
+        this.timeSlots = [];
+        const startHour = this.options.startHour;
+        const endHour = this.options.endHour;
+        const step = this.options.step;
+        const columns = this.options.columns;
+        let row;
+        let colCount = 0;
         for (let hour = startHour; hour <= endHour; hour++) {
-            const timeSlot = document.createElement("div");
-            timeSlot.classList.add("time-slot");
-            const hourString = hour.toString().padStart(2, "0") + ":00";
-
-            if (Array.isArray(this.disableTime) && this.disableTime.includes(hourString)) {
-                timeSlot?.classList.add("disabled");
-            } else {
-                timeSlot?.classList.remove("disabled");
-            }
-
-            timeSlot.textContent = hourString;
-            timeBox.appendChild(timeSlot);
-        }
-    }
-
-    getTimeInNumber(timeString) {
-        return parseInt(timeString.split(":")[0]);
-    }
-
-    handleMouseOnHoverSelection(target, timeBox) {
-        const selectedTime = target.textContent.trim();
-        if (this.startTime && !this.endTime) {
-            const startTime = this.getTimeInNumber(this.startTime);
-            const selectedTimeNumber = this.getTimeInNumber(selectedTime);
-            if (selectedTimeNumber > startTime) {
-                this.highlightRange(timeBox, this.startTime, selectedTime);
-            } else if (selectedTimeNumber == startTime) {
-                this.resetAllSelectedTimeSlotWithoutStartTime(timeBox, selectedTime);
-            } else {
-                this.highlightRange(timeBox, selectedTime, this.startTime);
+            for (let minute = 0; minute < 60; minute += step) {
+                if (colCount % columns === 0) {
+                    row = document.createElement('div');
+                    row.className = 'time-picker-row';
+                    this.grid.appendChild(row);
+                }
+                const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const slot = document.createElement('button');
+                slot.type = 'button';
+                slot.className = 'time-picker-slot';
+                slot.textContent = timeString;
+                slot.dataset.time = timeString;
+                if (this.options.disableTime.includes(timeString)) {
+                    slot.classList.add('disabled');
+                    slot.disabled = true;
+                } else {
+                    slot.addEventListener('click', () => this.handleSlotClick(slot));
+                }
+                row.appendChild(slot);
+                this.timeSlots.push(slot);
+                colCount++;
             }
         }
     }
 
-    resetAllSelectedTimeSlotWithoutStartTime(timeBox, startTime) {
-        if (this.startTime && this.endTime) {
-            return;
-        }
-        const timeSlots = timeBox.querySelectorAll(".time-slot");
-        timeSlots.forEach((slot) => {
-            if (slot.textContent.trim() !== this.getTimeFromString(startTime)) {
-                slot.classList.remove("selected", "start-selected", "end-selected");
+    bindEvents() {
+        // Display input events
+        const displayClick = () => this.toggle();
+        this.displayInput.addEventListener('click', displayClick);
+        this.eventListeners.push({ element: this.displayInput, type: 'click', listener: displayClick });
+
+        // Keyboard events
+        const keydown = (e) => {
+            if (e.key === 'Escape') {
+                this.close();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                this.toggle();
             }
-        });
+        };
+        this.displayInput.addEventListener('keydown', keydown);
+        this.eventListeners.push({ element: this.displayInput, type: 'keydown', listener: keydown });
+
+        // Document click to close dropdown
+        const documentClick = (e) => {
+            if (!this.wrapper.contains(e.target)) {
+                this.close();
+            }
+        };
+        document.addEventListener('click', documentClick);
+        this.eventListeners.push({ element: document, type: 'click', listener: documentClick });
+
+        // Sync with original input
+        const syncInput = () => {
+            this.originalInput.value = this.getValue();
+        };
+        this.displayInput.addEventListener('input', syncInput);
+        this.eventListeners.push({ element: this.displayInput, type: 'input', listener: syncInput });
     }
 
-    /**
-     * Resets the time selection on hover when the end time is not yet set.
-     * @param {HTMLElement} target - The time slot element that is being hovered.
-     * @param {HTMLElement} timeBox - The container element of the time slots.
-     */
-    resetOnHoverSelectedTimeSlot(target, timeBox) {
-        const selectedTime = target.textContent.trim();
-        if (this.startTime && !this.endTime) {
-            this.unSelectSelectedTime(timeBox, selectedTime);
-        }
-    }
-
-    handleTimeSelection(target, timeBox, input) {
-        const selectedTime = target.textContent.trim();
-        if (this.disableTime && this.disableTime.length > 0 && this.disableTime.includes(selectedTime)) {
-            return;
-        }
-
+    handleSlotClick(slot) {
+        const selectedTime = slot.dataset.time;
         if (!this.startTime) {
             this.startTime = selectedTime;
-            target.classList.add("selected", "start-selected");
-            input.value = this.startTime;
+            this.endTime = null;
+            this.updateGridSelection();
         } else if (!this.endTime) {
             this.endTime = selectedTime;
-            if (parseInt(this.endTime) <= parseInt(this.startTime)) {
+            if (this.getTimeInMinutes(this.endTime) < this.getTimeInMinutes(this.startTime)) {
                 [this.startTime, this.endTime] = [this.endTime, this.startTime];
             }
-            this.resetSelection(timeBox);
-            this.highlightRange(timeBox, this.startTime, this.endTime);
-            input.value = `${this.startTime}-${this.endTime}`;
-            // selected value
-
-            this.onSelected(this.startTime, this.endTime);
-
-            timeBox.classList.add("hidden");
+            this.updateGridSelection();
+            this.updateDisplay();
+            this.updateOriginalInput();
+            this.options.onSelected(this.startTime, this.endTime);
+            this.close();
         } else {
-            this.resetSelection(timeBox);
             this.startTime = selectedTime;
             this.endTime = null;
-            target.classList.add("selected", "start-selected");
-            input.value = this.startTime;
+            this.updateGridSelection();
         }
     }
 
-    highlightFirstSlot(container, startTime) {
-        const slots = container.querySelectorAll(".time-slot");
-        slots.forEach((slot) => {
-            const time = slot.textContent.trim();
-            if (time === this.getTimeFromString(startTime)) {
-                slot.classList.add("selected", "start-selected");
-            }
+    updateGridSelection() {
+        this.timeSlots.forEach(slot => {
+            slot.classList.remove('selected', 'start-selected', 'end-selected');
+            slot.style.backgroundColor = '';
+            slot.style.color = '';
         });
-    }
-
-    highlightRange(container, start, end) {
-        const slots = container.querySelectorAll(".time-slot");
-        let inRange = false;
-
-        slots.forEach((slot) => {
-            const time = slot.textContent;
-            if (time === this.getTimeFromString(start)) {
-                inRange = true;
-                if (this.startTime && this.getTimeFromString(this.startTime) === this.getTimeFromString(start)) {
-                    slot.classList.add("start-selected");
+        if (this.startTime && !this.endTime) {
+            const slot = this.timeSlots.find(s => s.dataset.time === this.startTime);
+            if (slot) {
+                slot.classList.add('start-selected');
+            }
+        } else if (this.startTime && this.endTime) {
+            const start = this.getTimeInMinutes(this.startTime);
+            const end = this.getTimeInMinutes(this.endTime);
+            this.timeSlots.forEach(slot => {
+                const t = this.getTimeInMinutes(slot.dataset.time);
+                if (t >= start && t <= end) {
+                    slot.classList.add('selected');
                 }
-            }
-
-            if (inRange) slot.classList.add("selected");
-
-            if (time === this.getTimeFromString(end)) {
-                inRange = false;
-                if (this.endTime && this.getTimeFromString(this.endTime) === this.getTimeFromString(end)) {
-                    slot.classList.add("end-selected");
+                if (t === start) {
+                    slot.classList.add('start-selected');
                 }
-            }
-        });
+                if (t === end) {
+                    slot.classList.add('end-selected');
+                }
+            });
+        }
     }
 
-    resetSelection(container) {
-        const slots = container.querySelectorAll(".time-slot");
-        slots.forEach((slot) => slot.classList.remove("selected", "start-selected", "end-selected"));
+    getTimeInMinutes(timeString) {
+        const [hours, minutes] = timeString.split(':').map(Number);
+        return hours * 60 + minutes;
     }
 
-    unSelectSelectedTime(container, time) {
-        const slots = container.querySelectorAll(".time-slot");
-        slots.forEach((slot) => {
-            const slotTime = slot.textContent.trim();
-            if (slotTime === time) {
-                slot.classList.remove("selected", "start-selected", "end-selected");
-            }
-        });
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
     }
 
-    getTimeFromString(timeString) {
-        return timeString.toString().length === 4 ? "0" + timeString : timeString;
+    open() {
+        if (this.isOpen) return;
+        
+        this.grid.style.display = 'block';
+        this.isOpen = true;
+        this.options.onOpen();
+        
+        // Highlight current selection if exists
+        if (this.startTime && this.endTime) {
+            this.updateGridSelection();
+        } else if (this.startTime) {
+            this.updateGridSelection();
+        }
+    }
+
+    close() {
+        if (!this.isOpen) return;
+        
+        this.grid.style.display = 'none';
+        this.isOpen = false;
+        this.options.onClose();
+        
+        // Clear incomplete selection
+        if (this.startTime && !this.endTime) {
+            this.startTime = null;
+            this.updateGridSelection();
+            this.updateDisplay();
+        }
+    }
+
+    updateDisplay() {
+        if (this.startTime && this.endTime) {
+            this.displayInput.value = `${this.startTime} - ${this.endTime}`;
+        } else if (this.startTime) {
+            this.displayInput.value = this.startTime;
+        } else {
+            this.displayInput.value = '';
+        }
+    }
+
+    updateOriginalInput() {
+        this.originalInput.value = this.getValue();
+    }
+
+    getValue() {
+        if (this.startTime && this.endTime) {
+            return `${this.startTime} - ${this.endTime}`;
+        }
+        return '';
+    }
+
+    setValue(startTime, endTime) {
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.updateDisplay();
+        this.updateOriginalInput();
+        
+        if (this.isOpen && startTime && endTime) {
+            this.updateGridSelection();
+        }
+    }
+
+    clear() {
+        this.startTime = null;
+        this.endTime = null;
+        this.updateGridSelection();
+        this.updateDisplay();
+        this.updateOriginalInput();
     }
 
     destroy() {
-        // Remove all event listeners
+        // Remove event listeners
         this.eventListeners.forEach(({ element, type, listener }) => {
             element.removeEventListener(type, listener);
         });
         this.eventListeners = [];
 
-        // Remove DOM elements
-        if (this.element) {
-            const timeBox = this.element.querySelector(".time-picker-box");
-            if (timeBox) {
-                timeBox.innerHTML = ""; // Clear time slots
-            }
+        // Restore original input
+        if (this.originalInput) {
+            this.originalInput.style.display = '';
+        }
+
+        // Remove wrapper from DOM
+        if (this.wrapper && this.wrapper.parentNode) {
+            this.wrapper.parentNode.removeChild(this.wrapper);
         }
 
         // Reset properties
-        this.element = null;
+        this.originalInput = null;
+        this.wrapper = null;
+        this.displayInput = null;
+        this.grid = null;
+        this.timeSlots = [];
         this.startTime = null;
         this.endTime = null;
-        this.disableTime = null;
-        this.onSelected = () => {};
+        this.isOpen = false;
     }
 }
